@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from projects.models import Membership, Project
+from projects.models import ActivityLog, Membership, Project
 
 User = get_user_model()
 
@@ -129,6 +129,36 @@ class MembershipAPITests(APITestCase):
             f'/api/projects/{self.project.id}/remove-member/', {'username': 'm_owner'}
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class ProjectActivityAPITests(APITestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username='a_owner', password='password123', email='a_owner@example.com')
+        self.outsider = User.objects.create_user(
+            username='a_outsider', password='password123', email='a_outsider@example.com'
+        )
+
+        self.project = Project.objects.create(name='Activity Project', owner=self.owner)
+        Membership.objects.create(user=self.owner, project=self.project, role=Membership.Role.OWNER)
+
+        for i in range(3):
+            ActivityLog.objects.create(project=self.project, user=self.owner, action=f'Did thing {i}')
+
+    def test_activity_response_is_paginated(self):
+        """The endpoint should return the standard {count, next, previous,
+        results} shape, not a bare array -- matches every other list
+        endpoint in the API."""
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.get(f'/api/projects/{self.project.id}/activity/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('count', response.data)
+        self.assertIn('results', response.data)
+        self.assertEqual(response.data['count'], 3)
+
+    def test_outsider_cannot_view_activity(self):
+        self.client.force_authenticate(user=self.outsider)
+        response = self.client.get(f'/api/projects/{self.project.id}/activity/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
 class ProjectFilteringAPITests(APITestCase):
