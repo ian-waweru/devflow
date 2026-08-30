@@ -8,6 +8,128 @@ from projects.models import Membership, Project
 User = get_user_model()
 
 
+class AuthAPITests(APITestCase):
+    def test_user_can_register(self):
+        payload = {
+            'username': 'newuser',
+            'email': 'newuser@example.com',
+            'password': 'strongpassword123',
+            'first_name': 'New',
+            'last_name': 'User',
+        }
+        response = self.client.post('/api/auth/register/', payload)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(User.objects.filter(username='newuser').exists())
+        # Password must never come back in the response.
+        self.assertNotIn('password', response.data)
+
+    def test_register_missing_required_field_returns_400(self):
+        payload = {'username': 'incomplete', 'password': 'strongpassword123'}
+        response = self.client.post('/api/auth/register/', payload)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(User.objects.filter(username='incomplete').exists())
+
+    def test_register_short_password_returns_400(self):
+        payload = {
+            'username': 'shortpw',
+            'email': 'shortpw@example.com',
+            'password': '123',
+        }
+        response = self.client.post('/api/auth/register/', payload)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(User.objects.filter(username='shortpw').exists())
+
+    def test_register_duplicate_username_returns_400(self):
+        User.objects.create_user(username='taken', password='password123', email='taken@example.com')
+        payload = {
+            'username': 'taken',
+            'email': 'different@example.com',
+            'password': 'strongpassword123',
+        }
+        response = self.client.post('/api/auth/register/', payload)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_register_duplicate_email_returns_400(self):
+        User.objects.create_user(username='original', password='password123', email='dupe@example.com')
+        payload = {
+            'username': 'different',
+            'email': 'dupe@example.com',
+            'password': 'strongpassword123',
+        }
+        response = self.client.post('/api/auth/register/', payload)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class LoginAPITests(APITestCase):
+    def setUp(self):
+        self.password = 'strongpassword123'
+        self.user = User.objects.create_user(
+            username='loginuser', password=self.password, email='loginuser@example.com'
+        )
+
+    def test_user_can_login_with_correct_credentials(self):
+        response = self.client.post('/api/auth/login/', {
+            'username': 'loginuser', 'password': self.password
+        })
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access', response.data)
+        self.assertIn('refresh', response.data)
+
+    def test_login_with_wrong_password_returns_401(self):
+        response = self.client.post('/api/auth/login/', {
+            'username': 'loginuser', 'password': 'wrongpassword'
+        })
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_login_with_nonexistent_user_returns_401(self):
+        response = self.client.post('/api/auth/login/', {
+            'username': 'ghost', 'password': 'whatever123'
+        })
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_access_token_can_be_refreshed(self):
+        login_response = self.client.post('/api/auth/login/', {
+            'username': 'loginuser', 'password': self.password
+        })
+        refresh_token = login_response.data['refresh']
+        response = self.client.post('/api/auth/token/refresh/', {'refresh': refresh_token})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access', response.data)
+
+
+class MeEndpointAPITests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='profileuser', password='password123', email='profileuser@example.com'
+        )
+
+    def test_unauthenticated_user_cannot_access_me(self):
+        response = self.client.get('/api/auth/me/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_authenticated_user_can_fetch_own_profile(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get('/api/auth/me/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['username'], 'profileuser')
+
+    def test_authenticated_user_can_update_bio(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.patch('/api/auth/me/', {'bio': 'Backend developer'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.bio, 'Backend developer')
+
+    def test_email_field_is_read_only_on_update(self):
+        """Email is listed as read_only in UserSerializer -- confirm it can't be changed via /me/."""
+        original_email = self.user.email
+        self.client.force_authenticate(user=self.user)
+        response = self.client.patch('/api/auth/me/', {'email': 'hacked@example.com'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, original_email)
+
+
 class NotificationAPITests(APITestCase):
     def setUp(self):
         self.owner = User.objects.create_user(
