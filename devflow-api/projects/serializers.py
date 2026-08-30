@@ -43,3 +43,13 @@ class ActivityLogSerializer(serializers.ModelSerializer):
         model = ActivityLog
         fields = ('id', 'project', 'user', 'action', 'timestamp')
         read_only_fields = ('id', 'project', 'user', 'action', 'timestamp')
+
+
+class MembershipActionSerializer(serializers.Serializer):
+    """
+    Documents the real request body for the add-member/remove-member
+    custom actions -- a bare {"username": "..."}, not a Project object.
+    Used only for OpenAPI schema generation via @extend_schema; the views
+    still read straight from request.data.
+    """
+    username = serializers.CharField()

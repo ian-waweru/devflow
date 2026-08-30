@@ -1,5 +1,6 @@
 from typing import ClassVar
 
+from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -49,6 +50,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                 target_url=f"/api/tasks/{task.id}/"
             )
 
+    @extend_schema(request=None, responses=TaskSerializer)
     @action(detail=True, methods=['post'], url_path='complete')
     def complete_task(self, request, pk=None):
         task = self.get_object()
@@ -62,6 +64,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         )
         return Response(TaskSerializer(task).data, status=status.HTTP_200_OK)
 
+    @extend_schema(request=None, responses=TaskSerializer)
     @action(detail=True, methods=['post'], url_path='archive')
     def archive_task(self, request, pk=None):
         task = self.get_object()

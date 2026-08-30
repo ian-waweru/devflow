@@ -1,16 +1,23 @@
 from typing import ClassVar
 
 from django.contrib.auth import get_user_model
+from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts.models import Notification
+from accounts.serializers import MessageResponseSerializer
 
 from .models import ActivityLog, Membership, Project
 from .permissions import IsProjectMemberOrOwner
-from .serializers import ActivityLogSerializer, MembershipSerializer, ProjectSerializer
+from .serializers import (
+    ActivityLogSerializer,
+    MembershipActionSerializer,
+    MembershipSerializer,
+    ProjectSerializer,
+)
 
 User = get_user_model()
 
@@ -36,6 +43,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
             .distinct()
         )
 
+    @extend_schema(
+        request=MembershipActionSerializer,
+        responses={
+            201: MembershipSerializer,
+            400: MessageResponseSerializer,
+            404: MessageResponseSerializer,
+        },
+    )
     @action(detail=True, methods=['post'], url_path='add-member')
     def add_member(self, request, pk=None):
         project = self.get_object()
@@ -75,6 +90,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         return Response(MembershipSerializer(membership).data, status=status.HTTP_201_CREATED)
 
+    @extend_schema(
+        request=MembershipActionSerializer,
+        responses={
+            200: MessageResponseSerializer,
+            400: MessageResponseSerializer,
+            404: MessageResponseSerializer,
+        },
+    )
     @action(detail=True, methods=['post'], url_path='remove-member')
     def remove_member(self, request, pk=None):
         project = self.get_object()
@@ -100,9 +123,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
             action=f"Created project '{project.name}'"
         )
 
+    @extend_schema(responses=ActivityLogSerializer(many=True), filters=False)
     @action(detail=True, methods=['get'], url_path='activity')
     def activity(self, request, pk=None):
         project = self.get_object()
         activities = project.activities.all()
+        page = self.paginate_queryset(activities)
+        if page is not None:
+            serializer = ActivityLogSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         serializer = ActivityLogSerializer(activities, many=True)
         return Response(serializer.data)
