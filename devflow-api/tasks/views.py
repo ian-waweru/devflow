@@ -9,7 +9,7 @@ from accounts.models import Notification
 from projects.models import ActivityLog
 
 from .models import Comment, Task
-from .permissions import IsTaskProjectMemberOrOwner
+from .permissions import IsCommentAuthorOrReadOnly, IsTaskProjectMemberOrOwner
 from .serializers import CommentSerializer, TaskSerializer
 
 
@@ -78,7 +78,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
 class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
-    permission_classes: ClassVar[list] = [IsAuthenticated]
+    permission_classes: ClassVar[list] = [IsAuthenticated, IsCommentAuthorOrReadOnly]
 
     def get_queryset(self):
         return Comment.objects.filter(task__project__members=self.request.user).distinct()
