@@ -28,6 +28,7 @@ class ManageUserView(generics.RetrieveUpdateAPIView):
 class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = NotificationSerializer
     permission_classes = (IsAuthenticated,)
+    filterset_fields = ('is_read',)
 
     def get_queryset(self):
         if getattr(self, 'swagger_fake_view', False) or not self.request.user.is_authenticated:

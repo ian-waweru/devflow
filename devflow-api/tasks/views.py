@@ -79,9 +79,18 @@ class TaskViewSet(viewsets.ModelViewSet):
 class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
     permission_classes: ClassVar[list] = [IsAuthenticated, IsCommentAuthorOrReadOnly]
+    filterset_fields: ClassVar[list[str]] = ['task']
+    search_fields: ClassVar[list[str]] = ['content']
+    ordering_fields: ClassVar[list[str]] = ['created_at']
 
     def get_queryset(self):
-        return Comment.objects.filter(task__project__members=self.request.user).distinct()
+        if getattr(self, 'swagger_fake_view', False) or not self.request.user.is_authenticated:
+            return Comment.objects.none()
+        return (
+            Comment.objects.filter(task__project__members=self.request.user)
+            .select_related('task', 'author')
+            .distinct()
+        )
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
