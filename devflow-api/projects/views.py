@@ -19,6 +19,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
     permission_classes: ClassVar[list] = [IsAuthenticated, IsProjectMemberOrOwner]
+    filterset_fields: ClassVar[list[str]] = ['owner']
+    search_fields: ClassVar[list[str]] = ['name', 'description']
+    ordering_fields: ClassVar[list[str]] = ['name', 'created_at', 'updated_at']
 
     def get_queryset(self):
         # Prevent schema generation crash when evaluated with AnonymousUser
