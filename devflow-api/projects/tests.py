@@ -129,3 +129,59 @@ class MembershipAPITests(APITestCase):
             f'/api/projects/{self.project.id}/remove-member/', {'username': 'm_owner'}
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class ProjectFilteringAPITests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='filter_user', password='password123', email='filter_user@example.com')
+        self.other_owner = User.objects.create_user(
+            username='other_owner', password='password123', email='other_owner@example.com'
+        )
+
+        self.apollo = Project.objects.create(name='Apollo', description='Rocket tracking', owner=self.user)
+        self.brew = Project.objects.create(name='Brew Tracker', description='Coffee inventory', owner=self.user)
+        self.zeta = Project.objects.create(name='Zeta Rollout', description='Rocket telemetry dashboard', owner=self.other_owner)
+
+        for project, owner, role in [
+            (self.apollo, self.user, Membership.Role.OWNER),
+            (self.brew, self.user, Membership.Role.OWNER),
+            (self.zeta, self.other_owner, Membership.Role.OWNER),
+        ]:
+            Membership.objects.create(user=owner, project=project, role=role)
+
+        # self.user is also a member (not owner) of zeta, so it shows up in
+        # their project list and search results too.
+        Membership.objects.create(user=self.user, project=self.zeta, role=Membership.Role.MEMBER)
+
+        self.client.force_authenticate(user=self.user)
+
+    def test_filter_projects_by_owner(self):
+        response = self.client.get(f'/api/projects/?owner={self.other_owner.id}')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        names = {p['name'] for p in response.data['results']}
+        self.assertEqual(names, {'Zeta Rollout'})
+
+    def test_search_projects_by_name(self):
+        response = self.client.get('/api/projects/?search=Brew')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        names = {p['name'] for p in response.data['results']}
+        self.assertEqual(names, {'Brew Tracker'})
+
+    def test_search_projects_by_description(self):
+        """Search should match description too, not just name -- both are in search_fields."""
+        response = self.client.get('/api/projects/?search=Rocket')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        names = {p['name'] for p in response.data['results']}
+        self.assertEqual(names, {'Apollo', 'Zeta Rollout'})
+
+    def test_order_projects_by_name_ascending(self):
+        response = self.client.get('/api/projects/?ordering=name')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        names = [p['name'] for p in response.data['results']]
+        self.assertEqual(names, sorted(names))
+
+    def test_order_projects_by_name_descending(self):
+        response = self.client.get('/api/projects/?ordering=-name')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        names = [p['name'] for p in response.data['results']]
+        self.assertEqual(names, sorted(names, reverse=True))

@@ -211,3 +211,13 @@ class NotificationAPITests(APITestCase):
 
         unread_count = Notification.objects.filter(recipient=self.assignee, is_read=False).count()
         self.assertEqual(unread_count, 0)
+
+    def test_filter_notifications_by_is_read(self):
+        Notification.objects.create(recipient=self.assignee, actor=self.owner, verb="Unread alert")
+        Notification.objects.create(recipient=self.assignee, actor=self.owner, verb="Read alert", is_read=True)
+
+        self.client.force_authenticate(user=self.assignee)
+        response = self.client.get('/api/auth/notifications/?is_read=false')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        verbs = {n['verb'] for n in response.data['results']}
+        self.assertEqual(verbs, {'Unread alert'})

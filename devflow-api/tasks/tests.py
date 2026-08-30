@@ -134,6 +134,67 @@ class TaskAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
+class TaskFilteringAPITests(APITestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username='tf_owner', password='password123', email='tf_owner@example.com')
+        self.assignee = User.objects.create_user(username='tf_assignee', password='password123', email='tf_assignee@example.com')
+
+        self.project = Project.objects.create(name='Filter Project', owner=self.owner)
+        Membership.objects.create(user=self.owner, project=self.project, role=Membership.Role.OWNER)
+        Membership.objects.create(user=self.assignee, project=self.project, role=Membership.Role.MEMBER)
+
+        self.todo_task = Task.objects.create(
+            title='Set up CI', project=self.project, created_by=self.owner,
+            status=Task.Status.TODO, priority=Task.Priority.LOW,
+        )
+        self.in_progress_task = Task.objects.create(
+            title='Build auth', project=self.project, created_by=self.owner,
+            status=Task.Status.IN_PROGRESS, priority=Task.Priority.HIGH, assigned_to=self.assignee,
+        )
+        self.done_task = Task.objects.create(
+            title='Write docs', project=self.project, created_by=self.owner,
+            status=Task.Status.COMPLETED, priority=Task.Priority.MEDIUM,
+        )
+
+        self.client.force_authenticate(user=self.owner)
+
+    def test_filter_tasks_by_status(self):
+        response = self.client.get('/api/tasks/?status=todo')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        titles = {t['title'] for t in response.data['results']}
+        self.assertEqual(titles, {'Set up CI'})
+
+    def test_filter_tasks_by_priority(self):
+        response = self.client.get('/api/tasks/?priority=high')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        titles = {t['title'] for t in response.data['results']}
+        self.assertEqual(titles, {'Build auth'})
+
+    def test_filter_tasks_by_assigned_to(self):
+        response = self.client.get(f'/api/tasks/?assigned_to={self.assignee.id}')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        titles = {t['title'] for t in response.data['results']}
+        self.assertEqual(titles, {'Build auth'})
+
+    def test_combine_status_and_priority_filters(self):
+        response = self.client.get('/api/tasks/?status=completed&priority=medium')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        titles = {t['title'] for t in response.data['results']}
+        self.assertEqual(titles, {'Write docs'})
+
+    def test_search_tasks_by_title(self):
+        response = self.client.get('/api/tasks/?search=auth')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        titles = {t['title'] for t in response.data['results']}
+        self.assertEqual(titles, {'Build auth'})
+
+    def test_order_tasks_by_priority(self):
+        response = self.client.get('/api/tasks/?ordering=priority')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        priorities = [t['priority'] for t in response.data['results']]
+        self.assertEqual(priorities, sorted(priorities))
+
+
 class CommentAPITests(APITestCase):
     def setUp(self):
         self.owner = User.objects.create_user(username='c_owner', password='password123', email='c_owner@example.com')
@@ -182,3 +243,41 @@ class CommentAPITests(APITestCase):
         response = self.client.delete(f'/api/tasks/comments/{self.comment.id}/')
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Comment.objects.filter(id=self.comment.id).exists())
+
+
+class CommentFilteringAPITests(APITestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username='cf_owner', password='password123', email='cf_owner@example.com')
+        self.author = User.objects.create_user(username='cf_author', password='password123', email='cf_author@example.com')
+
+        self.project = Project.objects.create(name='Comment Filter Project', owner=self.owner)
+        Membership.objects.create(user=self.owner, project=self.project, role=Membership.Role.OWNER)
+        Membership.objects.create(user=self.author, project=self.project, role=Membership.Role.MEMBER)
+
+        self.task_a = Task.objects.create(title='Task A', project=self.project, created_by=self.owner)
+        self.task_b = Task.objects.create(title='Task B', project=self.project, created_by=self.owner)
+
+        self.comment_a1 = Comment.objects.create(task=self.task_a, author=self.author, content='First on A')
+        self.comment_a2 = Comment.objects.create(task=self.task_a, author=self.owner, content='Second on A, mentions bug')
+        self.comment_b1 = Comment.objects.create(task=self.task_b, author=self.author, content='Only on B')
+
+        self.client.force_authenticate(user=self.owner)
+
+    def test_filter_comments_by_task(self):
+        response = self.client.get(f'/api/tasks/comments/?task={self.task_a.id}')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        contents = {c['content'] for c in response.data['results']}
+        self.assertEqual(contents, {'First on A', 'Second on A, mentions bug'})
+
+    def test_search_comments_by_content(self):
+        response = self.client.get('/api/tasks/comments/?search=bug')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        contents = {c['content'] for c in response.data['results']}
+        self.assertEqual(contents, {'Second on A, mentions bug'})
+
+    def test_comments_default_to_newest_first(self):
+        """No explicit ordering param -- should fall back to Comment.Meta.ordering (-created_at)."""
+        response = self.client.get(f'/api/tasks/comments/?task={self.task_a.id}')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        contents = [c['content'] for c in response.data['results']]
+        self.assertEqual(contents, ['Second on A, mentions bug', 'First on A'])
