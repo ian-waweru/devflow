@@ -8,6 +8,13 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('access_token'));
   const [loading, setLoading] = useState(true);
 
+  const logout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    setToken(null);
+    setUser(null);
+  };
+
   useEffect(() => {
     const fetchUser = async () => {
       if (!token) {
@@ -39,13 +46,6 @@ export const AuthProvider = ({ children }) => {
     const userResponse = await api.get('/auth/me/');
     setUser(userResponse.data);
     return userResponse.data;
-  };
-
-  const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    setToken(null);
-    setUser(null);
   };
 
   return (

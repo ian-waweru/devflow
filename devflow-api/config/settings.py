@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -170,4 +171,24 @@ SPECTACULAR_SETTINGS = {
     'TITLE': 'DevFlow API',
     'DESCRIPTION': 'Project & task management API',
     'VERSION': '1.0.0',
+}
+
+# django-cors-headers is already in INSTALLED_APPS/MIDDLEWARE, but without
+# CORS_ALLOWED_ORIGINS it defaults to allowing nothing -- every request
+# from the Vite dev server was being silently blocked by the browser.
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+]
+
+SIMPLE_JWT = {
+    # Default is 5 minutes, which is too short for a comfortable dev/testing
+    # session and makes the missing-refresh-logic gap bite almost
+    # immediately. 30 min is still conservative for production; tighten
+    # this back down once the frontend's refresh flow is in place and
+    # you're closer to deployment.
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': False,
 }
