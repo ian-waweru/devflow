@@ -48,8 +48,16 @@ export const AuthProvider = ({ children }) => {
     return userResponse.data;
   };
 
+  // Registration doesn't return tokens on its own (POST /auth/register/
+  // just creates the user) -- log in immediately after so the person
+  // doesn't have to fill in the same credentials twice.
+  const register = async (payload) => {
+    await api.post('/auth/register/', payload);
+    return login(payload.username, payload.password);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
