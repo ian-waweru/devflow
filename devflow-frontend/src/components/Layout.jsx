@@ -18,10 +18,13 @@ const Layout = () => {
           <div className="flex items-center gap-8">
             <span className="text-xl font-bold text-indigo-400">DevFlow</span>
 
-            {/* Nav links grow here as more sections ship (Projects, Notifications, ...) */}
+            {/* Nav links grow here as more sections ship (Notifications, ...) */}
             <nav className="flex items-center gap-1">
               <NavLink to="/" end className={navLinkClasses}>
                 Dashboard
+              </NavLink>
+              <NavLink to="/projects" className={navLinkClasses}>
+                Projects
               </NavLink>
             </nav>
           </div>
