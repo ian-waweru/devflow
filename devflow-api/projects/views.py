@@ -123,6 +123,18 @@ class ProjectViewSet(viewsets.ModelViewSet):
             action=f"Created project '{project.name}'"
         )
 
+    @extend_schema(responses=MembershipSerializer(many=True), filters=False)
+    @action(detail=True, methods=['get'], url_path='members')
+    def members(self, request, pk=None):
+        project = self.get_object()
+        memberships = project.memberships.select_related('user').all()
+        page = self.paginate_queryset(memberships)
+        if page is not None:
+            serializer = MembershipSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = MembershipSerializer(memberships, many=True)
+        return Response(serializer.data)
+
     @extend_schema(responses=ActivityLogSerializer(many=True), filters=False)
     @action(detail=True, methods=['get'], url_path='activity')
     def activity(self, request, pk=None):

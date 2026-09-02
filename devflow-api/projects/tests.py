@@ -161,6 +161,38 @@ class ProjectActivityAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
+class ProjectMembersAPITests(APITestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username='pm_owner', password='password123', email='pm_owner@example.com')
+        self.member = User.objects.create_user(username='pm_member', password='password123', email='pm_member@example.com')
+        self.outsider = User.objects.create_user(
+            username='pm_outsider', password='password123', email='pm_outsider@example.com'
+        )
+
+        self.project = Project.objects.create(name='Members Project', owner=self.owner)
+        Membership.objects.create(user=self.owner, project=self.project, role=Membership.Role.OWNER)
+        Membership.objects.create(user=self.member, project=self.project, role=Membership.Role.MEMBER)
+
+    def test_members_response_is_paginated_and_includes_both_members(self):
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.get(f'/api/projects/{self.project.id}/members/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('count', response.data)
+        self.assertEqual(response.data['count'], 2)
+        usernames = {m['user']['username'] for m in response.data['results']}
+        self.assertEqual(usernames, {'pm_owner', 'pm_member'})
+
+    def test_member_can_view_members_list(self):
+        self.client.force_authenticate(user=self.member)
+        response = self.client.get(f'/api/projects/{self.project.id}/members/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_outsider_cannot_view_members(self):
+        self.client.force_authenticate(user=self.outsider)
+        response = self.client.get(f'/api/projects/{self.project.id}/members/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
 class ProjectFilteringAPITests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='filter_user', password='password123', email='filter_user@example.com')
