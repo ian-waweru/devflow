@@ -19,7 +19,7 @@ class Project(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ('-created_at',)
+        ordering = ('-created_at', '-id')
 
     def __str__(self):
         return self.name
@@ -49,6 +49,10 @@ class Membership(models.Model):
 
     class Meta:
         unique_together = ('user', 'project')
+        # id as a tiebreaker: two memberships created in the same clock
+        # tick (auto_now_add resolution varies by OS/DB) would otherwise
+        # sort in an undefined order.
+        ordering = ('joined_at', 'id')
 
     def __str__(self):
         return f"{self.user.username} - {self.project.name} ({self.role})"
@@ -61,7 +65,7 @@ class ActivityLog(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ('-timestamp',)
+        ordering = ('-timestamp', '-id')
 
     def __str__(self):
         return f"{self.user} - {self.action} at {self.timestamp}"
