@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { listNotifications } from '../api/notifications';
 
 const navLinkClasses = ({ isActive }) =>
   `px-3 py-2 rounded text-sm font-medium transition ${
@@ -10,6 +12,22 @@ const navLinkClasses = ({ isActive }) =>
 
 const Layout = () => {
   const { user, logout } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const refreshUnreadCount = () => {
+    // Pagination gives an exact count without needing to fetch the actual
+    // notification objects -- cheap enough to call after any action that
+    // might change unread state (marking read, mount, etc.).
+    listNotifications({ is_read: false })
+      .then((res) => setUnreadCount(res.data.count))
+      .catch(() => {
+        // Non-critical -- badge just stays at its last known value.
+      });
+  };
+
+  useEffect(() => {
+    refreshUnreadCount();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -18,13 +36,22 @@ const Layout = () => {
           <div className="flex items-center gap-8">
             <span className="text-xl font-bold text-indigo-400">DevFlow</span>
 
-            {/* Nav links grow here as more sections ship (Notifications, ...) */}
             <nav className="flex items-center gap-1">
               <NavLink to="/" end className={navLinkClasses}>
                 Dashboard
               </NavLink>
               <NavLink to="/projects" className={navLinkClasses}>
                 Projects
+              </NavLink>
+              <NavLink to="/notifications" className={navLinkClasses}>
+                <span className="inline-flex items-center gap-1.5">
+                  Notifications
+                  {unreadCount > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-indigo-500 text-white text-xs font-semibold">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </span>
               </NavLink>
             </nav>
           </div>
@@ -44,7 +71,7 @@ const Layout = () => {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
-        <Outlet />
+        <Outlet context={{ refreshUnreadCount }} />
       </main>
     </div>
   );
