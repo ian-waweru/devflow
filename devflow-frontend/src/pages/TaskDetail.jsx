@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getTask } from '../api/tasks';
 import { listComments, createComment, updateComment, deleteComment } from '../api/comments';
+import { fetchAllPages } from '../utils/pagination';
 import { getErrorMessage } from '../utils/errors';
 
 const STATUS_LABELS = {
@@ -46,8 +47,12 @@ const TaskDetail = () => {
           listComments({ task: taskId }),
         ]);
         if (ignore) return;
+
+        const allComments = await fetchAllPages(commentsRes);
+        if (ignore) return;
+
         setTask(taskRes.data);
-        setComments(commentsRes.data.results);
+        setComments(allComments);
         setError('');
       } catch (err) {
         if (ignore) return;

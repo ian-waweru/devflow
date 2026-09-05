@@ -10,6 +10,7 @@ import {
   deleteProject,
 } from '../api/projects';
 import { listTasks, createTask, updateTaskStatus, deleteTask } from '../api/tasks';
+import { fetchAllPages } from '../utils/pagination';
 import { getErrorMessage } from '../utils/errors';
 
 const STATUS_OPTIONS = [
@@ -68,10 +69,18 @@ const ProjectDetail = () => {
           listTasks({ project: id }),
         ]);
         if (ignore) return;
+
+        const [allMembers, allActivity, allTasks] = await Promise.all([
+          fetchAllPages(membersRes),
+          fetchAllPages(activityRes),
+          fetchAllPages(tasksRes),
+        ]);
+        if (ignore) return;
+
         setProject(projectRes.data);
-        setMembers(membersRes.data.results);
-        setActivity(activityRes.data.results);
-        setTasks(tasksRes.data.results);
+        setMembers(allMembers);
+        setActivity(allActivity);
+        setTasks(allTasks);
         setError('');
       } catch (err) {
         if (ignore) return;

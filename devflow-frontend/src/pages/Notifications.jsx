@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { listNotifications, markNotificationRead, markAllNotificationsRead } from '../api/notifications';
 import { resolveNotificationLink } from '../utils/notifications';
+import { fetchAllPages } from '../utils/pagination';
 import { getErrorMessage } from '../utils/errors';
 
 const Notifications = () => {
@@ -19,8 +20,9 @@ const Notifications = () => {
     const load = async () => {
       try {
         const response = await listNotifications();
+        const allNotifications = await fetchAllPages(response);
         if (ignore) return;
-        setNotifications(response.data.results);
+        setNotifications(allNotifications);
         setError('');
       } catch (err) {
         if (ignore) return;

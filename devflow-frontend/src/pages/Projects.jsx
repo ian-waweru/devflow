@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listProjects, createProject } from '../api/projects';
+import { fetchAllPages } from '../utils/pagination';
 import { getErrorMessage } from '../utils/errors';
 
 const Projects = () => {
@@ -20,8 +21,9 @@ const Projects = () => {
     const loadProjects = async () => {
       try {
         const response = await listProjects();
+        const allProjects = await fetchAllPages(response);
         if (ignore) return;
-        setProjects(response.data.results);
+        setProjects(allProjects);
         setError('');
       } catch (err) {
         if (ignore) return;
