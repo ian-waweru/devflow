@@ -310,7 +310,12 @@ const ProjectDetail = () => {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium truncate">{task.title}</span>
+                      <Link
+                        to={`/tasks/${task.id}`}
+                        className="font-medium truncate hover:text-indigo-400 transition"
+                      >
+                        {task.title}
+                      </Link>
                       <span className={`text-xs px-2 py-0.5 rounded ${PRIORITY_STYLES[task.priority]}`}>
                         {task.priority}
                       </span>
