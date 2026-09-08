@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { listProjects, createProject } from '../api/projects';
 import { fetchAllPages } from '../utils/pagination';
 import { getErrorMessage } from '../utils/errors';
+import Skeleton from '../components/Skeleton';
 
 const Projects = () => {
   const [projects, setProjects] = useState([]);
@@ -112,7 +113,21 @@ const Projects = () => {
         </form>
       )}
 
-      {loading && <p className="text-gray-400">Loading projects...</p>}
+      {loading && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-gray-800 border border-gray-700 rounded-lg p-5 space-y-3">
+              <Skeleton className="h-5 w-2/3" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-4/5" />
+              <div className="flex justify-between pt-2">
+                <Skeleton className="h-3 w-1/4" />
+                <Skeleton className="h-3 w-1/5" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {!loading && error && (
         <div className="p-3 bg-red-500/10 border border-red-500 text-red-400 text-sm rounded">

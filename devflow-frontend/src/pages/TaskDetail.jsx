@@ -5,6 +5,8 @@ import { getTask } from '../api/tasks';
 import { listComments, createComment, updateComment, deleteComment } from '../api/comments';
 import { fetchAllPages } from '../utils/pagination';
 import { getErrorMessage } from '../utils/errors';
+import Skeleton from '../components/Skeleton';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const STATUS_LABELS = {
   todo: 'To Do',
@@ -36,6 +38,8 @@ const TaskDetail = () => {
   const [editingId, setEditingId] = useState(null);
   const [editContent, setEditContent] = useState('');
   const [editSubmitting, setEditSubmitting] = useState(false);
+
+  const [confirmDialog, setConfirmDialog] = useState(null);
 
   useEffect(() => {
     let ignore = false;
@@ -106,17 +110,36 @@ const TaskDetail = () => {
     }
   };
 
-  const handleDeleteComment = async (commentId) => {
-    if (!window.confirm('Delete this comment?')) return;
-    try {
-      await deleteComment(commentId);
-      setRefreshKey((key) => key + 1);
-    } catch (err) {
-      setCommentError(getErrorMessage(err, 'Could not delete comment.'));
-    }
+  const handleDeleteComment = (commentId) => {
+    setConfirmDialog({
+      title: 'Delete Comment',
+      message: 'Delete this comment? This cannot be undone.',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          await deleteComment(commentId);
+          setRefreshKey((key) => key + 1);
+        } catch (err) {
+          setCommentError(getErrorMessage(err, 'Could not delete comment.'));
+        }
+      },
+    });
   };
 
-  if (loading) return <p className="text-gray-400">Loading task...</p>;
+  if (loading) {
+    return (
+      <div>
+        <Skeleton className="h-4 w-28 mb-3" />
+        <Skeleton className="h-7 w-1/2 mb-2" />
+        <Skeleton className="h-4 w-2/3 mb-8" />
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 space-y-4">
+          <Skeleton className="h-5 w-28" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -245,6 +268,14 @@ const TaskDetail = () => {
           </button>
         </form>
       </div>
+
+      <ConfirmDialog
+        open={!!confirmDialog}
+        title={confirmDialog?.title}
+        message={confirmDialog?.message}
+        onConfirm={confirmDialog?.onConfirm}
+        onCancel={() => setConfirmDialog(null)}
+      />
     </div>
   );
 };

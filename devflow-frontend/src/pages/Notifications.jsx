@@ -4,6 +4,7 @@ import { listNotifications, markNotificationRead, markAllNotificationsRead } fro
 import { resolveNotificationLink } from '../utils/notifications';
 import { fetchAllPages } from '../utils/pagination';
 import { getErrorMessage } from '../utils/errors';
+import Skeleton from '../components/Skeleton';
 
 const Notifications = () => {
   const { refreshUnreadCount } = useOutletContext();
@@ -80,7 +81,16 @@ const Notifications = () => {
         )}
       </div>
 
-      {loading && <p className="text-gray-400">Loading notifications...</p>}
+      {loading && (
+        <ul className="space-y-2">
+          {[1, 2, 3, 4].map((i) => (
+            <li key={i} className="bg-gray-800 border border-gray-700 rounded px-4 py-3 space-y-2">
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-3 w-1/4" />
+            </li>
+          ))}
+        </ul>
+      )}
 
       {!loading && error && (
         <div className="p-3 bg-red-500/10 border border-red-500 text-red-400 text-sm rounded">

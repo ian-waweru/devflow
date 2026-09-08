@@ -12,6 +12,8 @@ import {
 import { listTasks, createTask, updateTaskStatus, deleteTask } from '../api/tasks';
 import { fetchAllPages } from '../utils/pagination';
 import { getErrorMessage } from '../utils/errors';
+import Skeleton from '../components/Skeleton';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const STATUS_OPTIONS = [
   ['todo', 'To Do'],
@@ -54,6 +56,8 @@ const ProjectDetail = () => {
   const [taskFormError, setTaskFormError] = useState('');
   const [taskSubmitting, setTaskSubmitting] = useState(false);
   const [taskActionError, setTaskActionError] = useState('');
+
+  const [confirmDialog, setConfirmDialog] = useState(null);
 
   const isOwner = project && user && project.owner?.id === user.id;
 
@@ -124,14 +128,20 @@ const ProjectDetail = () => {
     }
   };
 
-  const handleDeleteProject = async () => {
-    if (!window.confirm(`Delete "${project.name}"? This cannot be undone.`)) return;
-    try {
-      await deleteProject(id);
-      navigate('/projects');
-    } catch (err) {
-      setError(getErrorMessage(err, 'Could not delete this project.'));
-    }
+  const handleDeleteProject = () => {
+    setConfirmDialog({
+      title: 'Delete Project',
+      message: `Delete "${project.name}"? This cannot be undone.`,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          await deleteProject(id);
+          navigate('/projects');
+        } catch (err) {
+          setError(getErrorMessage(err, 'Could not delete this project.'));
+        }
+      },
+    });
   };
 
   const handleCreateTask = async (e) => {
@@ -166,18 +176,49 @@ const ProjectDetail = () => {
     }
   };
 
-  const handleDeleteTask = async (taskId, title) => {
-    if (!window.confirm(`Delete task "${title}"?`)) return;
-    setTaskActionError('');
-    try {
-      await deleteTask(taskId);
-      setRefreshKey((key) => key + 1);
-    } catch (err) {
-      setTaskActionError(getErrorMessage(err, 'Could not delete task.'));
-    }
+  const handleDeleteTask = (taskId, title) => {
+    setConfirmDialog({
+      title: 'Delete Task',
+      message: `Delete task "${title}"?`,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        setTaskActionError('');
+        try {
+          await deleteTask(taskId);
+          setRefreshKey((key) => key + 1);
+        } catch (err) {
+          setTaskActionError(getErrorMessage(err, 'Could not delete task.'));
+        }
+      },
+    });
   };
 
-  if (loading) return <p className="text-gray-400">Loading project...</p>;
+  if (loading) {
+    return (
+      <div>
+        <Skeleton className="h-4 w-24 mb-3" />
+        <Skeleton className="h-8 w-1/3 mb-2" />
+        <Skeleton className="h-4 w-1/2 mb-8" />
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6 space-y-3">
+          <Skeleton className="h-5 w-24 mb-2" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 space-y-3">
+            <Skeleton className="h-5 w-24 mb-2" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 space-y-3">
+            <Skeleton className="h-5 w-24 mb-2" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -445,6 +486,14 @@ const ProjectDetail = () => {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!confirmDialog}
+        title={confirmDialog?.title}
+        message={confirmDialog?.message}
+        onConfirm={confirmDialog?.onConfirm}
+        onCancel={() => setConfirmDialog(null)}
+      />
     </div>
   );
 };
