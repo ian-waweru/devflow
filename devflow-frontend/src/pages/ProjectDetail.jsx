@@ -239,7 +239,7 @@ const ProjectDetail = () => {
         ← Back to Projects
       </Link>
 
-      <div className="flex items-start justify-between mt-3 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mt-3 mb-8">
         <div>
           <h1 className="text-2xl font-bold">{project.name}</h1>
           <p className="text-gray-400 mt-1">{project.description || 'No description.'}</p>
@@ -248,7 +248,7 @@ const ProjectDetail = () => {
         {isOwner && (
           <button
             onClick={handleDeleteProject}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded transition"
+            className="self-start px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded transition"
           >
             Delete Project
           </button>
@@ -304,7 +304,7 @@ const ProjectDetail = () => {
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-indigo-500"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">Priority</label>
                 <select
@@ -356,7 +356,7 @@ const ProjectDetail = () => {
               return (
                 <li
                   key={task.id}
-                  className="flex items-center justify-between gap-4 bg-gray-900/50 px-4 py-3 rounded"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-gray-900/50 px-4 py-3 rounded"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -375,7 +375,7 @@ const ProjectDetail = () => {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
                     <select
                       value={task.status}
                       disabled={!canEditStatus}
