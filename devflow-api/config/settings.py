@@ -14,6 +14,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+import dj_database_url
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -33,8 +34,9 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = [
-    '127.0.0.1',
-    'localhost',
+    h.strip()
+    for h in os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+    if h.strip()
 ]
 
 
@@ -62,6 +64,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -94,10 +97,10 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+    )
 }
 
 
@@ -136,19 +139,33 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-
-# Email
-# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
-
-MAILERS = {
+STORAGES = {
     'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        # Serves static files directly from Django/gunicorn with far-future
+        # cache headers and gzip/brotli compression -- no separate static
+        # file host (S3, nginx, etc.) needed for an app this size.
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
     },
 }
 
 
+# Email
+# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
+# Note: "MAILERS" was here previously but isn't a real Django setting --
+# it was silently ignored, meaning email config was never actually wired up.
+# Nothing in the app sends email yet, but this is the correct setting name
+# for whenever that changes.
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+
+
 AUTH_USER_MODEL = 'accounts.User'   # we'll build a custom user model next
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -177,8 +194,9 @@ SPECTACULAR_SETTINGS = {
 # CORS_ALLOWED_ORIGINS it defaults to allowing nothing -- every request
 # from the Vite dev server was being silently blocked by the browser.
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
+    o.strip()
+    for o in os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
+    if o.strip()
 ]
 
 SIMPLE_JWT = {
@@ -192,3 +210,24 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': False,
 }
+
+# Production-only hardening. All of this is harmless/inactive during local
+# development (DEBUG=True), so there's no separate "prod settings file" to
+# keep in sync -- one settings module, gated by the same DEBUG flag.
+if not DEBUG:
+    # Render/Railway/Heroku-style platforms terminate TLS at a proxy and
+    # forward plain HTTP internally. Without this, Django can't tell the
+    # request was actually HTTPS and SECURE_SSL_REDIRECT below would cause
+    # an infinite redirect loop.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    # Starts conservative (1 week) rather than the commonly-recommended
+    # 1 year -- HSTS is a header that's easy to regret at max duration if
+    # something about the deployment needs to change later.
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 7
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True

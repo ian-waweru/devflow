@@ -1,30 +1,7 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-
-# Django
-db.sqlite3
-*.sqlite3
-
-# Virtual environment
-venv/
-env/
-.venv/
-
 # Environment variables
 .env
 .env.*
 !.env.example
-
-# React / Node
-node_modules/
-frontend/build/
-frontend/dist/
-
-# React environment files
-frontend/.env
-frontend/.env.local
 
 # IDE
 .vscode/
@@ -33,3 +10,23 @@ frontend/.env.local
 # OS
 .DS_Store
 Thumbs.db
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Django / databases
+db.sqlite3
+*.sqlite3
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Node
+node_modules/
