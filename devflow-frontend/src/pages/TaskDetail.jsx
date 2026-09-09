@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { getTask } from '../api/tasks';
 import { listComments, createComment, updateComment, deleteComment } from '../api/comments';
 import { fetchAllPages } from '../utils/pagination';

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 // The register endpoint returns DRF serializer-style field errors, e.g.
 // { "username": ["A user with that username already exists."], "email": [...] }
